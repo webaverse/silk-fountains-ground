@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import SilkShader from './shaders/SilkShader.js';
 import metaversefile from 'metaversefile';
+import { Vector3 } from 'three';
 
 const {useApp, useFrame, useLoaders, usePhysics, useCleanup} = metaversefile;
 
@@ -9,48 +10,54 @@ const baseUrl = import.meta.url.replace(/(\/)[^\/\/]*$/, '$1');
 
 export default () => {  
 
+    
     const app = useApp();
     const physics = usePhysics();
     const physicsIds = [];
+    const silkNodesArray = [];
+    const groundVerticePositions = [];
+
+    let groundMeshSqrt;
+    let neighbourCheckSphere;
+    let silkBrightnessVal = 0;
+
+    const rocksArray = [];
+    const rockGroupsArray = [];
+    const plantsArray = [];
+    const bushesArray = [];
+
+    let groundMesh;
+    let rock01Mesh, rock02Mesh, rock03Mesh, rock04Mesh, rock05Mesh, rock06Mesh, rock07Mesh, rock08Mesh, rock09Mesh, rock10Mesh; 
+    let rockGroup01Mesh, rockGroup02Mesh, rockGroup03Mesh, rockGroup04Mesh, rockGroup05Mesh, rockGroup06Mesh, rockGroup07Mesh, rockGroup08Mesh, rockGroup09Mesh, rockGroup10Mesh; 
+    let plantMesh01, plantMesh02, plantMesh03;
+    let bushMesh01, bushMesh02;
+
+    const silkMaterialTexture = new THREE.TextureLoader().load( baseUrl + "textures/silk/silk-contrast-noise.png" );
+    silkMaterialTexture.wrapS = silkMaterialTexture.wrapT = THREE.RepeatWrapping;
+
+    const silkShaderMaterial = new THREE.ShaderMaterial({
+        uniforms: SilkShader.uniforms,
+        vertexShader: SilkShader.vertexShader,
+        fragmentShader: SilkShader.fragmentShader,
+        side: THREE.DoubleSide,
+    })
+
+    silkShaderMaterial.uniforms.noiseImage.value = silkMaterialTexture;
     
-    //console.log( 'texture path: ' + baseUrl + "textures/silk/silk-contrast-noise.png" );
-    //console.log( 'SilkShader = ' + SilkShader.vertexShader )
+    const getSilkMaterialClone = () => {
+        let silkMaterialClone = silkShaderMaterial.clone();
+        silkMaterialClone.uniforms.noiseImage.value = silkMaterialTexture;
 
-    const createShaderMaterial = () => {
-
-        let testSilkTexture = new THREE.TextureLoader().load( baseUrl + "textures/silk/silk-contrast-noise.png" );
-        testSilkTexture.wrapS = testSilkTexture.wrapT = THREE.RepeatWrapping;
-
-        SilkShader.uniforms.noiseImage.value = testSilkTexture;
-
-        const silkShaderMat = new THREE.ShaderMaterial({
-            uniforms: SilkShader.uniforms,
-            vertexShader: SilkShader.vertexShader,
-            fragmentShader: SilkShader.fragmentShader,
-            side: THREE.DoubleSide,
-        })
-
-        return silkShaderMat;
-
-        /* let debugMat = new THREE.ShaderMaterial( {
-            vertexShader: DebugShader.vertexShader,
-            fragmentShader: DebugShader.fragmentShader,
-            side: THREE.DoubleSide
-        });
-
-        return debugMat; */
-
+        let seed = Math.random() * 0;
+        silkMaterialClone.seed = seed;
+    
+        return silkMaterialClone;
     }
-
-    const silkShaderMaterial = createShaderMaterial();
-    const debugMaterial = new THREE.MeshNormalMaterial();
 
     const loadModel = ( params ) => {
 
-
         return new Promise( ( resolve, reject ) => {
                 
-            //const loader = new GLTFLoader();
             const { gltfLoader } = useLoaders();
             const { dracoLoader } = useLoaders();
             gltfLoader.setDRACOLoader( dracoLoader );
@@ -65,10 +72,16 @@ export default () => {
                     physicsIds.push( physicsId );
     
                     if ( child.isMesh ) {
-    
+
+                        if( params.fileName === "SilkFountain_Ground_Dream.glb" ){
+                            for( let i = 0; i<child.geometry.attributes.position.count; i++ ){
+                                let v = new THREE.Vector3().fromBufferAttribute( child.geometry.attributes.position, i ) ;
+                                groundVerticePositions.push( v );
+                            }
+                        }
+                            
                         numVerts += child.geometry.index.count / 3;  
-                        child.material = debugMaterial
-                        child.material.wireframe = true;
+
                         child.castShadow = true;
                         child.receiveShadow = true;
                     }
@@ -83,19 +96,208 @@ export default () => {
         })
     }
 
-    loadModel( { 
-        filePath: baseUrl,
-        fileName: 'SilkFountain_Ground_Dream.glb',
-        pos: { x: 0, y: 0, z: 0 },
-    } ).then ( 
-        result => {
-            app.add( result );
+    let p1 = loadModel( { filePath: baseUrl, fileName: 'SilkFountain_Ground_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { groundMesh = result.children[ 0 ] } );
+
+    let p2 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock01Mesh = result.children[ 0 ] } );
+    let p3 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock02Mesh = result.children[ 0 ] } );
+    let p4 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock03Mesh = result.children[ 0 ] } );
+    let p5 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock04_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock04Mesh = result.children[ 0 ] } );
+    let p6 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock05_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock05Mesh = result.children[ 0 ] } );
+    let p7 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock06_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock06Mesh = result.children[ 0 ] } );
+    let p8 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock07_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock07Mesh = result.children[ 0 ] } );
+    let p9 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock08_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock08Mesh = result.children[ 0 ] } );
+    let p10 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock09_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock09Mesh = result.children[ 0 ] } );
+    let p11 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock10_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock10Mesh = result.children[ 0 ] } );
+
+    let p12 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup01Mesh = result.children[ 0 ] } );
+    let p13 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup02Mesh = result.children[ 0 ] } );
+    let p14 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup03Mesh = result.children[ 0 ] } );
+    let p15 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup04_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup04Mesh = result.children[ 0 ] } );
+    let p16 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup05_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup05Mesh = result.children[ 0 ] } );
+    let p17 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup06_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup06Mesh = result.children[ 0 ] } );
+    let p18 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup07_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup07Mesh = result.children[ 0 ] } );
+    let p19 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup08_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup08Mesh = result.children[ 0 ] } );
+    let p20 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup09_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup09Mesh = result.children[ 0 ] } );
+    let p21 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup10_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup10Mesh = result.children[ 0 ] } );
+
+    let p22 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh01 = result.children[ 0 ] } );
+    let p23 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh02 = result.children[ 0 ] } );
+    let p24 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh03 = result.children[ 0 ] } );
+
+    let p25 = loadModel( { filePath: baseUrl, fileName: 'models/bushes/Bush01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { bushMesh01 = result.children[ 0 ] } );
+    let p26 = loadModel( { filePath: baseUrl, fileName: 'models/bushes/Bush01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { bushMesh02 = result.children[ 0 ] } );
+
+    let loadPromisesArr = [ p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26 ];
+
+    Promise.all( loadPromisesArr ).then( models => {
+
+        app.add( groundMesh );
+
+        rocksArray.push( rock01Mesh, rock02Mesh, rock03Mesh, rock04Mesh, rock05Mesh, rock06Mesh, rock07Mesh, rock08Mesh, rock09Mesh, rock10Mesh );
+        rockGroupsArray.push( rockGroup01Mesh, rockGroup02Mesh, rockGroup03Mesh, rockGroup04Mesh, rockGroup05Mesh, rockGroup06Mesh, rockGroup07Mesh, rockGroup08Mesh, rockGroup09Mesh, rockGroup10Mesh );
+        plantsArray.push( plantMesh01, plantMesh02, plantMesh03 );
+        bushesArray.push( bushMesh01, bushMesh02 );
+
+        addGroundItems();
+        addAndScatterSilkNodes( 500, 1, 2 );
+     
+    });
+    
+
+    const addGroundItems = () => {
+
+        
+                          // mesh, amount, minScale, maxScale, hasPhysics 
+        createInstancedMesh( rock01Mesh, 100, 0.8, 2, false );
+        createInstancedMesh( rock03Mesh, 10, 0.8, 20, false );
+        createInstancedMesh( rock02Mesh, 100, 0.8, 2, false );
+        createInstancedMesh( rock04Mesh, 100, 0.8, 2, false );
+        createInstancedMesh( rock05Mesh, 100, 0.8, 2, false );
+        createInstancedMesh( rock06Mesh, 100, 0.8, 20, false );
+        createInstancedMesh( rock07Mesh, 100, 0.8, 2, false );
+        createInstancedMesh( rock08Mesh, 10, 0.8, 2, false );
+        createInstancedMesh( rock09Mesh, 100, 0.8, 2, false );
+        createInstancedMesh( rock10Mesh, 10, 0.8, 20, false );
+
+        createInstancedMesh( rockGroup01Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup02Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup03Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup04Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup05Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup06Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup07Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup08Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup09Mesh, 200, 0.8, 2, false );
+        createInstancedMesh( rockGroup10Mesh, 200, 0.8, 2, false );
+
+        createInstancedMesh( plantMesh01, 100, 0.8, 2, false );
+        createInstancedMesh( plantMesh02, 100, 0.8, 3, false );
+        createInstancedMesh( plantMesh03, 100, 0.8, 2, false );
+
+        createInstancedMesh( bushMesh01, 100, 0.8, 4, false );
+        createInstancedMesh( bushMesh02, 100, 0.8, 2, false );
+    }
+
+    const randomizeMatrix = function () {
+
+        const rotation = new THREE.Euler();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+
+        neighbourCheckSphere = new THREE.Sphere( new Vector3( 0,0,0 ), 5 );
+
+        return function ( matrix, minScale, maxScale ) {
+
+            let p = groundVerticePositions[ Math.floor( Math.random() * groundVerticePositions.length )];
+
+            neighbourCheckSphere.set( p, 10 );
+            let neighbours = [];
+            
+            for( let i = 0; i<groundVerticePositions.length; i++ ){
+                if( neighbourCheckSphere.containsPoint( groundVerticePositions[ i ] ) ){
+                    neighbours.push( groundVerticePositions[ i ] );
+                }
+            }
+
+            let randNeighbourVec = neighbours[ Math.floor( Math.random() * neighbours.length )];
+            let lerpPos = p.lerp( randNeighbourVec, Math.random() );
+
+            rotation.y = Math.random() * 2 * Math.PI;
+
+            quaternion.setFromEuler( rotation );
+
+            scale.x = scale.y = scale.z = minScale + Math.floor( Math.random() * ( maxScale - minScale ) );
+
+            matrix.compose( lerpPos, quaternion, scale );
+
+        };
+
+    }();
+
+    const createInstancedMesh = ( mesh, amount, minScale, maxScale, hasPhysics ) => {
+
+        const matrix = new THREE.Matrix4();
+        const m = new THREE.InstancedMesh( mesh.geometry, mesh.material, amount );
+
+        for ( let i = 0; i < amount; i ++ ) {
+            randomizeMatrix( matrix, minScale, maxScale );
+            m.setMatrixAt( i, matrix );
         }
-    )
+
+        if( hasPhysics ) {
+            const physicsId = physics.addGeometry( m ); 
+            physicsIds.push( physicsId );
+        }
+
+        app.add( m );
+        m.updateMatrixWorld()
+        
+    }
+
+    const addAndScatterSilkNodes = ( amount, minScale, maxScale ) => {
+
+        const scale = new THREE.Vector3();
+        const rotation = new THREE.Euler();
+        const quaternion = new THREE.Quaternion();
+
+        for( let i = 0; i<amount; i++ ){
+            let randRockMesh = rocksArray[ Math.floor( Math.random() * rocksArray.length ) ].clone();
+
+            let p = new THREE.Vector3( 15, 0, 0);
+
+            neighbourCheckSphere.set( p, 100 );
+            let neighbours = [];
+            
+            for( let j = 0; j<groundVerticePositions.length; j++ ){
+                if( neighbourCheckSphere.containsPoint( groundVerticePositions[ j ] ) ){
+                    neighbours.push( groundVerticePositions[ j ] );
+                }
+            }
+
+            let randStartVec = neighbours[ Math.floor( Math.random() * neighbours.length )];
+        
+            neighbourCheckSphere.set( randStartVec, 10 );
+
+            let immediateNeighbours = [];
+
+            for( let k = 0; k<groundVerticePositions.length; k++ ){
+                if( neighbourCheckSphere.containsPoint( groundVerticePositions[ k ] ) ){
+                    immediateNeighbours.push( groundVerticePositions[ k ] );
+                }
+            }
+
+            let randNeighbourVec = immediateNeighbours[ Math.floor( Math.random() * immediateNeighbours.length )];
+            
+            let lerpPos = randStartVec.lerp( randNeighbourVec, Math.random() );
+
+            randRockMesh.rotation.y = Math.random() * 2 * Math.PI;
+
+            let distanceScale = ( 100 - lerpPos.distanceTo( p ) ) * 0.02;
+
+            randRockMesh.scale.x = randRockMesh.scale.y = randRockMesh.scale.z = ( minScale + Math.floor( Math.random() * ( maxScale - minScale ) ) ) * distanceScale;
+            randRockMesh.position.set( lerpPos.x, lerpPos.y, lerpPos.z );
+            randRockMesh.dist = distanceScale;
+            randRockMesh.material = getSilkMaterialClone();
+            silkNodesArray.push( randRockMesh );
+
+            app.add( randRockMesh );
+            randRockMesh.updateMatrixWorld();
+    
+        }
+    }
+
 
     useFrame(( { timestamp } ) => {
-        //console.log( 'timestamp ', silkShaderMaterial.uniforms.noiseImage );
-        if( silkShaderMaterial ) silkShaderMaterial.uniforms.time.value += 0.02;
+
+        silkBrightnessVal += 0.2;
+
+        for( let i = 0; i < silkNodesArray.length; i++ ){
+            let shaderMesh = silkNodesArray[ i ];
+            shaderMesh.material.seed += 0.005;
+            shaderMesh.material.uniforms.time.value = shaderMesh.material.seed;
+            // needs refining - purely for debugging at present
+            shaderMesh.material.uniforms.contrast.value = 5.5 + ( Math.sin( shaderMesh.dist - silkBrightnessVal ) * 1 ) * 1.5 * 10;
+        }
     });
 
     useCleanup(() => {
