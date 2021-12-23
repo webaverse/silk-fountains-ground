@@ -3,7 +3,7 @@ import SilkShader from './shaders/SilkShader.js';
 import metaversefile from 'metaversefile';
 import { Vector3 } from 'three';
 
-const {useApp, useFrame, useLoaders, usePhysics, useCleanup} = metaversefile;
+const {useApp, useFrame, useLoaders, usePhysics, useCleanup, useLocalPlayer} = metaversefile;
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\/]*$/, '$1'); 
 
@@ -13,6 +13,7 @@ export default () => {
     
     const app = useApp();
     const physics = usePhysics();
+    const localPlayer = useLocalPlayer();
     const physicsIds = [];
     const silkNodesArray = [];
     const groundVerticePositions = [];
@@ -31,6 +32,15 @@ export default () => {
     let rockGroup01Mesh, rockGroup02Mesh, rockGroup03Mesh, rockGroup04Mesh, rockGroup05Mesh, rockGroup06Mesh, rockGroup07Mesh, rockGroup08Mesh, rockGroup09Mesh, rockGroup10Mesh; 
     let plantMesh01, plantMesh02, plantMesh03;
     let bushMesh01, bushMesh02;
+    let groundGeometry;
+
+    const textureMap = new THREE.TextureLoader().load( baseUrl + "textures/ground/texture-map.jpg" );
+    textureMap.encoding = THREE.sRGBEncoding;
+    textureMap.wrapS = THREE.ClampToEdgeWrapping;
+    textureMap.wrapT = THREE.ClampToEdgeWrapping;
+    textureMap.anisotropy = 16;
+
+    let heightMap;
 
     const silkMaterialTexture = new THREE.TextureLoader().load( baseUrl + "textures/silk/silk-contrast-noise.png" );
     silkMaterialTexture.wrapS = silkMaterialTexture.wrapT = THREE.RepeatWrapping;
@@ -54,6 +64,23 @@ export default () => {
         return silkMaterialClone;
     }
 
+    const loadTextures = () => {
+        return new Promise( ( resolve, reject ) => {
+
+            const loader = new THREE.TextureLoader();
+            
+            loader.load(
+
+                baseUrl + "textures/ground/height-map.jpg",
+
+                function ( texture ) {
+                    resolve( texture );
+                }
+            );
+        });
+    }
+
+
     const loadModel = ( params ) => {
 
         return new Promise( ( resolve, reject ) => {
@@ -68,18 +95,36 @@ export default () => {
     
                 gltf.scene.traverse( function ( child ) {
 
-                    const physicsId = physics.addGeometry( child );
-                    physicsIds.push( physicsId );
-    
                     if ( child.isMesh ) {
+                        
+                        if( params.fileName == "SilkFountain_Ground_V4_Dream.glb" ){
 
-                        if( params.fileName === "SilkFountain_Ground_Dream.glb" ){
-                            for( let i = 0; i<child.geometry.attributes.position.count; i++ ){
-                                let v = new THREE.Vector3().fromBufferAttribute( child.geometry.attributes.position, i ) ;
+                            let mat = new THREE.MeshStandardMaterial( { 
+                               color: 0xffffff,
+                                map: textureMap,
+                                /* displacementMap: heightMap,
+                                displacementScale: 800,  */
+                                wireframe: false
+                            })
+
+                            mat.needsUpdate = true
+                                
+                            child.material = mat;
+
+                            const physicsId = physics.addGeometry( child );
+                            physicsIds.push( physicsId );
+
+                            groundGeometry = child.geometry;
+
+                            for( let i = 0; i< groundGeometry.attributes.position.count; i++ ){
+                                groundGeometry.attributes.position.needsUpdate = true;
+                                let v = new THREE.Vector3().fromBufferAttribute( groundGeometry.attributes.position, i ) ;
                                 groundVerticePositions.push( v );
                             }
+
                         }
-                            
+
+
                         numVerts += child.geometry.index.count / 3;  
 
                         child.castShadow = true;
@@ -89,59 +134,76 @@ export default () => {
     
                 console.log( `Silk Fountain Ground modelLoaded() -> ${ params.fileName } num verts: ` + numVerts );
     
-                gltf.scene.position.set( params.pos.x, params.pos.y, params.pos.z  );
+                gltf.scene.position.set( params.pos.x, params.pos.y, params.pos.z );
 
                 resolve( gltf.scene );     
             });
         })
     }
 
-    let p1 = loadModel( { filePath: baseUrl, fileName: 'SilkFountain_Ground_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { groundMesh = result.children[ 0 ] } );
+    loadTextures().then( result => {
+        heightMap = result;
+        heightMap.encoding = THREE.sRGBEncoding;
+        heightMap.wrapS = THREE.ClampToEdgeWrapping;
+        heightMap.wrapT = THREE.ClampToEdgeWrapping;
+        heightMap.anisotropy = 16;
 
-    let p2 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock01Mesh = result.children[ 0 ] } );
-    let p3 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock02Mesh = result.children[ 0 ] } );
-    let p4 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock03Mesh = result.children[ 0 ] } );
-    let p5 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock04_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock04Mesh = result.children[ 0 ] } );
-    let p6 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock05_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock05Mesh = result.children[ 0 ] } );
-    let p7 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock06_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock06Mesh = result.children[ 0 ] } );
-    let p8 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock07_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock07Mesh = result.children[ 0 ] } );
-    let p9 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock08_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock08Mesh = result.children[ 0 ] } );
-    let p10 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock09_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock09Mesh = result.children[ 0 ] } );
-    let p11 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock10_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock10Mesh = result.children[ 0 ] } );
+        beginModelsLoad();
+    })
 
-    let p12 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup01Mesh = result.children[ 0 ] } );
-    let p13 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup02Mesh = result.children[ 0 ] } );
-    let p14 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup03Mesh = result.children[ 0 ] } );
-    let p15 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup04_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup04Mesh = result.children[ 0 ] } );
-    let p16 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup05_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup05Mesh = result.children[ 0 ] } );
-    let p17 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup06_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup06Mesh = result.children[ 0 ] } );
-    let p18 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup07_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup07Mesh = result.children[ 0 ] } );
-    let p19 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup08_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup08Mesh = result.children[ 0 ] } );
-    let p20 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup09_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup09Mesh = result.children[ 0 ] } );
-    let p21 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup10_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup10Mesh = result.children[ 0 ] } );
+    const beginModelsLoad = () => {
 
-    let p22 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh01 = result.children[ 0 ] } );
-    let p23 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh02 = result.children[ 0 ] } );
-    let p24 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh03 = result.children[ 0 ] } );
+        let p1 = loadModel( { filePath: baseUrl, fileName: 'SilkFountain_Ground_V4_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { groundMesh = result } );
 
-    let p25 = loadModel( { filePath: baseUrl, fileName: 'models/bushes/Bush01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { bushMesh01 = result.children[ 0 ] } );
-    let p26 = loadModel( { filePath: baseUrl, fileName: 'models/bushes/Bush01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { bushMesh02 = result.children[ 0 ] } );
+        let p2 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock01Mesh = result.children[ 0 ] } );
+        let p3 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock02Mesh = result.children[ 0 ] } );
+        let p4 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock03Mesh = result.children[ 0 ] } );
+        let p5 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock04_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock04Mesh = result.children[ 0 ] } );
+        let p6 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock05_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock05Mesh = result.children[ 0 ] } );
+        let p7 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock06_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock06Mesh = result.children[ 0 ] } );
+        let p8 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock07_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock07Mesh = result.children[ 0 ] } );
+        let p9 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock08_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock08Mesh = result.children[ 0 ] } );
+        let p10 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock09_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock09Mesh = result.children[ 0 ] } );
+        let p11 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/Rock10_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rock10Mesh = result.children[ 0 ] } );
+    
+        let p12 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup01Mesh = result.children[ 0 ] } );
+        let p13 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup02Mesh = result.children[ 0 ] } );
+        let p14 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup03Mesh = result.children[ 0 ] } );
+        let p15 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup04_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup04Mesh = result.children[ 0 ] } );
+        let p16 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup05_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup05Mesh = result.children[ 0 ] } );
+        let p17 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup06_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup06Mesh = result.children[ 0 ] } );
+        let p18 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup07_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup07Mesh = result.children[ 0 ] } );
+        let p19 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup08_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup08Mesh = result.children[ 0 ] } );
+        let p20 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup09_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup09Mesh = result.children[ 0 ] } );
+        let p21 = loadModel( { filePath: baseUrl, fileName: 'models/rocks/RockGroup10_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { rockGroup10Mesh = result.children[ 0 ] } );
+    
+        let p22 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh01 = result.children[ 0 ] } );
+        let p23 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant02_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh02 = result.children[ 0 ] } );
+        let p24 = loadModel( { filePath: baseUrl, fileName: 'models/plants/Plant03_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { plantMesh03 = result.children[ 0 ] } );
+    
+        let p25 = loadModel( { filePath: baseUrl, fileName: 'models/bushes/Bush01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { bushMesh01 = result.children[ 0 ] } );
+        let p26 = loadModel( { filePath: baseUrl, fileName: 'models/bushes/Bush01_Dream.glb', pos: { x: 0, y: 0, z: 0 } } ).then( result => { bushMesh02 = result.children[ 0 ] } );
+    
+        let loadPromisesArr = [ p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26 ];
+    
+        Promise.all( loadPromisesArr ).then( models => {
+    
+            app.add( groundMesh );
+    
+            rocksArray.push( rock01Mesh, rock02Mesh, rock03Mesh, rock04Mesh, rock05Mesh, rock06Mesh, rock07Mesh, rock08Mesh, rock09Mesh, rock10Mesh );
+            rockGroupsArray.push( rockGroup01Mesh, rockGroup02Mesh, rockGroup03Mesh, rockGroup04Mesh, rockGroup05Mesh, rockGroup06Mesh, rockGroup07Mesh, rockGroup08Mesh, rockGroup09Mesh, rockGroup10Mesh );
+            plantsArray.push( plantMesh01, plantMesh02, plantMesh03 );
+            bushesArray.push( bushMesh01, bushMesh02 );
+    
+            //assignVertsAndPhysicsToGround( groundMesh )
+            addGroundItems();
+            addAndScatterSilkNodes( 500, 1, 2 );
+            //addDebugGround();
+         
+        });
+    }
 
-    let loadPromisesArr = [ p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26 ];
-
-    Promise.all( loadPromisesArr ).then( models => {
-
-        app.add( groundMesh );
-
-        rocksArray.push( rock01Mesh, rock02Mesh, rock03Mesh, rock04Mesh, rock05Mesh, rock06Mesh, rock07Mesh, rock08Mesh, rock09Mesh, rock10Mesh );
-        rockGroupsArray.push( rockGroup01Mesh, rockGroup02Mesh, rockGroup03Mesh, rockGroup04Mesh, rockGroup05Mesh, rockGroup06Mesh, rockGroup07Mesh, rockGroup08Mesh, rockGroup09Mesh, rockGroup10Mesh );
-        plantsArray.push( plantMesh01, plantMesh02, plantMesh03 );
-        bushesArray.push( bushMesh01, bushMesh02 );
-
-        addGroundItems();
-        addAndScatterSilkNodes( 500, 1, 2 );
-     
-    });
+    
     
 
     const addGroundItems = () => {
@@ -176,6 +238,27 @@ export default () => {
 
         createInstancedMesh( bushMesh01, 100, 0.8, 4, false );
         createInstancedMesh( bushMesh02, 100, 0.8, 2, false );
+
+
+    }
+
+    const assignVertsAndPhysicsToGround = ( child ) => {
+       
+
+        
+    }
+
+    const addDebugGround = () => {
+
+        console.log( 'ADD DEBUG GROUND ')
+        let g = new THREE.Mesh( new THREE.PlaneBufferGeometry( 2000, 2000, 64, 64 ), new THREE.MeshStandardMaterial( { 
+            side: THREE.DoubleSide,
+            color: 0x556f30,
+            //map: new THREE.TextureLoader().load( './textures/grass/grass.jp')
+        }) );
+        g.setRotationFromAxisAngle( new THREE.Vector3( 1, 0, 0 ), -Math.PI/2 );
+        app.add( g )
+        g.updateMatrixWorld();
     }
 
     const randomizeMatrix = function () {
@@ -289,7 +372,7 @@ export default () => {
 
     useFrame(( { timestamp } ) => {
 
-        silkBrightnessVal += 0.2;
+        silkBrightnessVal += 0.1;
 
         for( let i = 0; i < silkNodesArray.length; i++ ){
             let shaderMesh = silkNodesArray[ i ];
@@ -298,6 +381,7 @@ export default () => {
             // needs refining - purely for debugging at present
             shaderMesh.material.uniforms.contrast.value = 5.5 + ( Math.sin( shaderMesh.dist - silkBrightnessVal ) * 1 ) * 1.5 * 10;
         }
+
     });
 
     useCleanup(() => {
