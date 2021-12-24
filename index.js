@@ -132,7 +132,7 @@ export default () => {
                     }
                 });
     
-                console.log( `Silk Fountain Ground modelLoaded() -> ${ params.fileName } num verts: ` + numVerts );
+                //console.log( `Silk Fountain Ground modelLoaded() -> ${ params.fileName } num verts: ` + numVerts );
     
                 gltf.scene.position.set( params.pos.x, params.pos.y, params.pos.z );
 
@@ -194,12 +194,9 @@ export default () => {
             rockGroupsArray.push( rockGroup01Mesh, rockGroup02Mesh, rockGroup03Mesh, rockGroup04Mesh, rockGroup05Mesh, rockGroup06Mesh, rockGroup07Mesh, rockGroup08Mesh, rockGroup09Mesh, rockGroup10Mesh );
             plantsArray.push( plantMesh01, plantMesh02, plantMesh03 );
             bushesArray.push( bushMesh01, bushMesh02 );
-    
-            //assignVertsAndPhysicsToGround( groundMesh )
+
             addGroundItems();
             addAndScatterSilkNodes( 500, 1, 2 );
-            //addDebugGround();
-         
         });
     }
 
@@ -240,12 +237,6 @@ export default () => {
         createInstancedMesh( bushMesh02, 100, 0.8, 2, false );
 
 
-    }
-
-    const assignVertsAndPhysicsToGround = ( child ) => {
-       
-
-        
     }
 
     const addDebugGround = () => {
@@ -378,10 +369,11 @@ export default () => {
             let shaderMesh = silkNodesArray[ i ];
             shaderMesh.material.seed += 0.005;
             shaderMesh.material.uniforms.time.value = shaderMesh.material.seed;
-            // needs refining - purely for debugging at present
-            shaderMesh.material.uniforms.contrast.value = 5.5 + ( Math.sin( shaderMesh.dist - silkBrightnessVal ) * 1 ) * 1.5 * 10;
+            shaderMesh.material.uniforms.tileCaustic_brightness.value = 1.5 - ( ( ( 1 + Math.sin( shaderMesh.dist + silkBrightnessVal ) ) * 0.5 ) );
+            shaderMesh.material.uniforms.noiseRipples_brightness.value = 0.1 - ( ( ( 1 + Math.sin( shaderMesh.dist + silkBrightnessVal ) ) * 0.5 ) * 0.075 );
         }
 
+        //console.log( 'playerPos ', localPlayer.position );
     });
 
     useCleanup(() => {
